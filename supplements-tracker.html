@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Добавки — щоденний трекер</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg:#141B17;
+    --card:#1C2620;
+    --card2:#233029;
+    --line:#2D3A31;
+    --text:#E9F0E9;
+    --muted:#8FA294;
+    --accent:#7BD8A0;
+    --accent-dim:rgba(123,216,160,.12);
+    --warn:#F2C94C;
+    --warn-dim:rgba(242,201,76,.1);
+    --radius:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{background:var(--bg)}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    color:var(--text);
+    min-height:100vh;
+    display:flex;justify-content:center;
+  }
+  .app{width:100%;max-width:480px;padding:20px 16px 96px}
+
+  h1,h2,.display{font-family:'Spectral',Georgia,serif;font-weight:600;letter-spacing:.01em}
+  h2{font-size:1.1rem;margin-bottom:10px}
+
+  /* ---------- date nav ---------- */
+  .daynav{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .daynav button{
+    background:var(--card);border:1px solid var(--line);color:var(--text);
+    width:40px;height:40px;border-radius:12px;font-size:1.1rem;cursor:pointer;
+  }
+  .daynav button:disabled{opacity:.3;cursor:default}
+  .daynav .label{text-align:center}
+  .daynav .label .display{font-size:1.25rem}
+  .daynav .label .sub{font-size:.78rem;color:var(--muted);margin-top:2px}
+
+  /* ---------- ring ---------- */
+  .ringwrap{display:flex;flex-direction:column;align-items:center;margin-bottom:22px}
+  .ringcenter{font-family:'Spectral',Georgia,serif;font-size:2rem;fill:var(--text)}
+  .ringsub{font-size:.6rem;fill:var(--muted);font-family:'Inter',sans-serif;letter-spacing:.1em}
+  .streak{margin-top:10px;font-size:.8rem;color:var(--muted)}
+  .streak b{color:var(--accent)}
+
+  /* ---------- cards ---------- */
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;margin-bottom:14px;
+  }
+  .cardhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .cardhead h2{margin:0}
+  .badge{font-size:.72rem;color:var(--muted)}
+  .badge.done{color:var(--accent)}
+
+  /* ---------- low stock banner ---------- */
+  .lowbanner{
+    background:var(--warn-dim);border:1px solid rgba(242,201,76,.3);border-radius:var(--radius);
+    padding:12px 14px;margin-bottom:14px;font-size:.82rem;line-height:1.55;
+  }
+  .lowbanner b{color:var(--warn)}
+
+  /* ---------- supplements list ---------- */
+  .group{font-size:.68rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin:14px 0 4px}
+  .group:first-of-type{margin-top:4px}
+  .supp{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer}
+  .supp:last-child{border-bottom:none}
+  .supp .box{
+    width:24px;height:24px;border-radius:8px;border:1.5px solid var(--muted);
+    flex:none;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:var(--bg);
+    transition:all .15s;
+  }
+  .supp.on .box{background:var(--accent);border-color:var(--accent)}
+  .supp .name{font-size:.95rem}
+  .supp.on .name{color:var(--muted);text-decoration:line-through;text-decoration-color:#56705e}
+  .supp .stockhint{font-size:.7rem;color:var(--muted);margin-top:1px}
+  .supp .stockhint.low{color:var(--warn)}
+  .allbtn{
+    width:100%;margin-top:12px;padding:11px;border-radius:12px;cursor:pointer;
+    background:var(--accent-dim);color:var(--accent);border:1px solid transparent;
+    font-size:.85rem;font-weight:600;font-family:inherit;
+  }
+
+  /* ---------- inputs ---------- */
+  .row2{display:flex;gap:10px}
+  .row3{display:flex;gap:10px}
+  .field{flex:1}
+  .field label{font-size:.72rem;color:var(--muted);display:block;margin-bottom:5px}
+  input[type=text],input[type=number],select{
+    width:100%;background:var(--card2);border:1px solid var(--line);color:var(--text);
+    border-radius:10px;padding:10px;font-size:.9rem;font-family:inherit;
+  }
+  .btn{
+    width:100%;margin-top:12px;padding:12px;border-radius:12px;cursor:pointer;
+    background:var(--card2);color:var(--text);border:1px solid var(--line);
+    font-size:.9rem;font-weight:600;font-family:inherit;
+  }
+
+  /* ---------- tabs ---------- */
+  .tabbar{
+    position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+    width:100%;max-width:480px;display:flex;
+    background:rgba(20,27,23,.92);backdrop-filter:blur(12px);
+    border-top:1px solid var(--line);padding:8px 6px calc(8px + env(safe-area-inset-bottom));
+  }
+  .tabbar button{
+    flex:1;background:none;border:none;color:var(--muted);cursor:pointer;
+    font-size:.68rem;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 0;
+  }
+  .tabbar button .ico{font-size:1.25rem;line-height:1}
+  .tabbar button.on{color:var(--text)}
+
+  /* ---------- stats ---------- */
+  .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+  .stat .num{font-family:'Spectral',Georgia,serif;font-size:1.7rem;color:var(--accent)}
+  .stat .lab{font-size:.72rem;color:var(--muted);margin-top:3px}
+  .bars{display:flex;align-items:flex-end;gap:7px;height:110px;margin-top:10px}
+  .barcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
+  .bar{width:100%;border-radius:6px 6px 3px 3px;min-height:3px;background:var(--accent)}
+  .barcol .d{font-size:.62rem;color:var(--muted)}
+  .perSupp{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:.85rem}
+  .perSupp:last-child{border-bottom:none}
+  .meter{width:90px;height:6px;background:var(--card2);border-radius:99px;overflow:hidden;flex:none}
+  .meter i{display:block;height:100%;background:var(--accent);border-radius:99px}
+
+  /* ---------- history ---------- */
+  .hday{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer}
+  .hday:last-child{border-bottom:none}
+  .hday .dt{font-size:.9rem}
+  .hday .pc{font-size:.85rem;font-weight:600}
+  .empty{color:var(--muted);font-size:.85rem;text-align:center;padding:30px 10px;line-height:1.6}
+
+  /* ---------- stack rows ---------- */
+  .stackrow{padding:11px 0;border-bottom:1px solid var(--line)}
+  .stackrow:last-of-type{border-bottom:none}
+  .stackrow .top{display:flex;align-items:center;gap:8px}
+  .stackrow .nm{flex:1;font-size:.92rem}
+  .stackrow .hn{font-size:.72rem;color:var(--muted)}
+  .stackrow .del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.05rem;padding:4px}
+  .stockline{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:.78rem;color:var(--muted);flex-wrap:wrap}
+  .stockline input{width:64px;padding:6px 8px;font-size:.82rem;text-align:center}
+  .daysleft{font-weight:600}
+  .daysleft.ok{color:var(--accent)}
+  .daysleft.low{color:var(--warn)}
+  .daysleft.out{color:#E87A6C}
+  .restock{
+    background:var(--card2);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:6px 10px;font-size:.75rem;cursor:pointer;font-family:inherit;
+  }
+  .confirmdel{
+    background:rgba(232,122,108,.12);border:1px solid rgba(232,122,108,.4);color:#E87A6C;
+    border-radius:8px;padding:6px 10px;font-size:.75rem;font-weight:600;cursor:pointer;font-family:inherit;
+  }
+
+  .toast{
+    position:fixed;bottom:84px;left:50%;transform:translateX(-50%);
+    background:var(--card2);border:1px solid var(--line);color:var(--text);
+    padding:10px 18px;border-radius:999px;font-size:.82rem;opacity:0;transition:opacity .25s;pointer-events:none;z-index:10;
+  }
+  .toast.show{opacity:1}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<nav class="tabbar" id="tabbar"></nav>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= state & storage ================= */
+const KEY='supptracker-v1';
+let DATA=null;
+let memOnly=false;
+let viewDate=todayStr();
+let tab='today';
+let pendingDelete=null;   // індекс добавки, що чекає підтвердження видалення
+let restockOpen=null;     // індекс добавки з відкритим полем поповнення
+let wipeArmed=false;      // підтвердження очищення історії
+const LOW_DAYS=7; // поріг «закінчується»
+
+const TIMES=[
+  {id:'fasted',    label:'Натще'},
+  {id:'beforemeal',label:'Перед їжею'},
+  {id:'morning',   label:'Вранці, з їжею'},
+  {id:'noon',      label:'Пообіді, з їжею'},
+  {id:'evemeal',   label:'Ввечері, з їжею'},
+  {id:'bedtime',   label:'Перед сном'},
+];
+const UNITS=[
+  {id:'pcs',  label:'шт',   defaultPack:60},
+  {id:'g',    label:'г',    defaultPack:300},
+  {id:'scoop',label:'лож.', defaultPack:30},
+  {id:'ml',   label:'мл',   defaultPack:100},
+];
+const DEFAULT_SUPPS=[
+ {id:'cit',name:'L-цитрулін', time:'fasted', unit:'g', dose:3, stock:null},
+ {id:'zn', name:'Цинк', time:'morning', unit:'pcs', dose:1, stock:null},
+ {id:'k2', name:'Вітамін K2 (MK-7)', time:'morning', unit:'pcs', dose:1, stock:null},
+ {id:'c',  name:'Вітамін C', time:'morning', unit:'pcs', dose:1, stock:null},
+ {id:'cre',name:'Креатин', time:'morning', unit:'g', dose:5, stock:null},
+ {id:'mg', name:'Магній бісгліцинат', time:'bedtime', unit:'pcs', dose:1, stock:null},
+ {id:'gly',name:'Гліцин', time:'bedtime', unit:'pcs', dose:1, stock:null},
+];
+const WD=['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
+const MONTHS=['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
+
+function todayStr(d=new Date()){
+  const z=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate());
+}
+function dateLabel(ds){
+  const d=new Date(ds+'T12:00:00');
+  return WD[d.getDay()]+', '+d.getDate()+' '+MONTHS[d.getMonth()];
+}
+function shiftDate(ds,n){
+  const d=new Date(ds+'T12:00:00');d.setDate(d.getDate()+n);return todayStr(d);
+}
+
+async function load(){
+  try{
+    const r=await window.storage.get(KEY);
+    DATA=JSON.parse(r.value);
+  }catch(e){
+    DATA={supplements:DEFAULT_SUPPS, days:{}};
+    try{await window.storage.set(KEY,JSON.stringify(DATA));}
+    catch(e2){memOnly=true;}
+  }
+  if(!DATA.supplements)DATA.supplements=DEFAULT_SUPPS;
+  if(!DATA.days)DATA.days={};
+  // міграція: додаємо поля запасів старим записам
+  DATA.supplements.forEach(s=>{
+    if(s.dose===undefined)s.dose=1;
+    if(s.stock===undefined)s.stock=null;
+    if(s.unit===undefined)s.unit='pcs';
+    // міграція старих часів прийому
+    if(s.time==='meal')s.time='morning';
+    if(s.time==='evening')s.time='bedtime';
+    if(s.time==='any')s.time='morning';
+    if(!TIMES.some(t=>t.id===s.time))s.time='morning';
+  });
+}
+let saveTimer=null;
+function save(){
+  if(memOnly)return;
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    try{await window.storage.set(KEY,JSON.stringify(DATA));}
+    catch(e){console.error('save failed',e);}
+  },400);
+}
+function day(ds=viewDate){
+  if(!DATA.days[ds])DATA.days[ds]={};
+  return DATA.days[ds];
+}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),1700);
+}
+function takenCount(ds){
+  const d=DATA.days[ds];if(!d)return 0;
+  return DATA.supplements.filter(s=>d[s.id]).length;
+}
+function pct(ds){
+  const t=DATA.supplements.length;
+  return t? takenCount(ds)/t : 0;
+}
+
+/* ================= stock helpers ================= */
+function unitOf(s){return UNITS.find(u=>u.id===s.unit)||UNITS[0];}
+function fmtAmt(v){return Math.round(v*10)/10;}
+function daysLeft(s){
+  if(s.stock===null||s.stock===undefined)return null;
+  if(s.dose<=0)return null;
+  return Math.floor(s.stock/s.dose);
+}
+function stockClass(n){
+  if(n===null)return'';
+  if(n<=0)return'out';
+  if(n<=LOW_DAYS)return'low';
+  return'ok';
+}
+function lowList(){
+  return DATA.supplements
+    .map(s=>({s,n:daysLeft(s)}))
+    .filter(x=>x.n!==null&&x.n<=LOW_DAYS)
+    .sort((a,b)=>a.n-b.n);
+}
+
+/* ================= streak ================= */
+function streak(){
+  let n=0, ds=todayStr();
+  if(pct(ds)<1)ds=shiftDate(ds,-1);
+  while(pct(ds)>=1 && DATA.supplements.length>0){n++;ds=shiftDate(ds,-1);}
+  return n;
+}
+
+/* ================= ring ================= */
+function ringSVG(ds){
+  const p=pct(ds);
+  const R=72,C=2*Math.PI*R;
+  const taken=takenCount(ds), total=DATA.supplements.length;
+  return `<svg width="180" height="180" viewBox="0 0 180 180" role="img" aria-label="Прийнято ${taken} з ${total}">
+    <circle cx="90" cy="90" r="${R}" fill="none" stroke="var(--line)" stroke-width="12"/>
+    <circle cx="90" cy="90" r="${R}" fill="none" stroke="var(--accent)" stroke-width="12"
+      stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-p)}"
+      transform="rotate(-90 90 90)" style="transition:stroke-dashoffset .4s"/>
+    <text x="90" y="88" text-anchor="middle" class="ringcenter">${taken}/${total}</text>
+    <text x="90" y="108" text-anchor="middle" class="ringsub">ПРИЙНЯТО</text>
+  </svg>`;
+}
+
+/* ================= render: today ================= */
+function renderToday(){
+  const d=day();
+  const isToday=viewDate===todayStr();
+  const total=DATA.supplements.length;
+  const taken=takenCount(viewDate);
+  const st=streak();
+  const low=lowList();
+
+  const groups=TIMES.map(t=>{
+    const items=DATA.supplements.filter(s=>s.time===t.id);
+    if(!items.length)return'';
+    return `<div class="group">${t.label}</div>`+items.map(s=>{
+      const n=daysLeft(s);
+      const hint=n===null?'':(n<=0?'закінчився!':n<=LOW_DAYS?`залишилось на ${n} ${dayWord(n)}`:'');
+      return `
+      <div class="supp ${d[s.id]?'on':''}" onclick="toggle('${s.id}')" role="checkbox" aria-checked="${!!d[s.id]}" tabindex="0"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggle('${s.id}')}">
+        <div class="box">${d[s.id]?'✓':''}</div>
+        <div>
+          <div class="name">${esc(s.name)}</div>
+          ${hint?`<div class="stockhint low">⚠ ${hint}</div>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  }).join('');
+
+  return `
+  <div class="daynav">
+    <button onclick="nav(-1)" aria-label="Попередній день">‹</button>
+    <div class="label">
+      <div class="display">${isToday?'Сьогодні':dateLabel(viewDate)}</div>
+      <div class="sub">${isToday?dateLabel(viewDate):'натисни › щоб повернутись'}</div>
+    </div>
+    <button onclick="nav(1)" ${isToday?'disabled':''} aria-label="Наступний день">›</button>
+  </div>
+
+  <div class="ringwrap">
+    ${ringSVG(viewDate)}
+    <div class="streak">${st>0?`🔥 Серія: <b>${st} ${dayWord(st)}</b> без пропусків`:'Прийми все сьогодні, щоб почати серію 🔥'}</div>
+  </div>
+
+  ${low.length?`<div class="lowbanner">🛒 <b>Час докупити:</b> ${low.map(x=>esc(x.s.name)+(x.n<=0?' (закінчився)':` (~${x.n} ${dayWord(x.n)})`)).join(', ')}</div>`:''}
+
+  <div class="card">
+    <div class="cardhead">
+      <h2>Мій стек</h2>
+      <span class="badge ${taken===total&&total>0?'done':''}">${taken===total&&total>0?'усе прийнято ✓':taken+'/'+total}</span>
+    </div>
+    ${total?groups:'<div class="empty">Список порожній — додай добавки у вкладці «Стек»</div>'}
+    ${total&&taken<total?`<button class="allbtn" onclick="markAll()">Відмітити все одразу</button>`:''}
+  </div>`;
+}
+function dayWord(n){
+  n=Math.abs(n);
+  const m10=n%10, m100=n%100;
+  if(m10===1&&m100!==11)return'день';
+  if(m10>=2&&m10<=4&&(m100<10||m100>=20))return'дні';
+  return'днів';
+}
+
+/* ================= render: stats ================= */
+function renderStats(){
+  const days=[...Array(7)].map((_,i)=>shiftDate(todayStr(),i-6));
+  const pcts=days.map(ds=>pct(ds));
+  const avg=Math.round(pcts.reduce((a,b)=>a+b,0)/7*100);
+  const perfect=pcts.filter(p=>p>=1).length;
+
+  const perSupp=DATA.supplements.map(s=>{
+    const taken=days.filter(ds=>DATA.days[ds]&&DATA.days[ds][s.id]).length;
+    return{name:s.name, p:taken/7};
+  }).sort((a,b)=>a.p-b.p);
+
+  return `
+  <h1 style="font-size:1.5rem;margin-bottom:16px">Останні 7 днів</h1>
+  <div class="statgrid">
+    <div class="stat"><div class="num">${avg}%</div><div class="lab">загальний прийом</div></div>
+    <div class="stat"><div class="num">${perfect}/7</div><div class="lab">днів без пропусків</div></div>
+  </div>
+  <div class="card">
+    <h2>По днях</h2>
+    <div class="bars">
+      ${days.map((ds,i)=>{
+        const d=new Date(ds+'T12:00:00');
+        return `<div class="barcol">
+          <div class="bar" style="height:${Math.round(pcts[i]*100)}%;opacity:${pcts[i]?1:.18}"></div>
+          <div class="d">${WD[d.getDay()]}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>
+  <div class="card">
+    <h2>Що пропускається найчастіше</h2>
+    ${DATA.supplements.length?perSupp.map(s=>`
+      <div class="perSupp">
+        <span>${esc(s.name)}</span>
+        <span style="display:flex;align-items:center;gap:8px">
+          <span class="meter"><i style="width:${Math.round(s.p*100)}%"></i></span>
+          <span style="color:var(--muted);font-size:.75rem;width:34px;text-align:right">${Math.round(s.p*100)}%</span>
+        </span>
+      </div>`).join(''):'<div class="empty">Додай добавки, щоб бачити статистику</div>'}
+  </div>`;
+}
+
+/* ================= render: history ================= */
+function renderHistory(){
+  const keys=Object.keys(DATA.days).sort().reverse().filter(ds=>takenCount(ds)>0);
+  if(!keys.length)return `<h1 style="font-size:1.5rem;margin-bottom:16px">Історія</h1><div class="card"><div class="empty">Поки що порожньо.<br>Перший відмічений день з'явиться тут.</div></div>`;
+  return `<h1 style="font-size:1.5rem;margin-bottom:16px">Історія</h1>
+  <div class="card">
+    ${keys.map(ds=>{
+      const p=Math.round(pct(ds)*100);
+      return `<div class="hday" onclick="openDay('${ds}')">
+        <span class="dt">${dateLabel(ds)}</span>
+        <span class="pc" style="color:${p>=100?'var(--accent)':'var(--muted)'}">${takenCount(ds)}/${DATA.supplements.length}</span>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+/* ================= render: stack ================= */
+function renderStack(){
+  return `
+  <h1 style="font-size:1.5rem;margin-bottom:16px">Мій стек</h1>
+  <div class="card">
+    ${DATA.supplements.map((s,i)=>{
+      const n=daysLeft(s);
+      const u=unitOf(s);
+      return `
+      <div class="stackrow">
+        <div class="top">
+          <div class="nm">${esc(s.name)}</div>
+          <select onchange="setTime(${i},this.value)" aria-label="Час прийому ${esc(s.name)}"
+                  style="width:auto;padding:6px 8px;font-size:.74rem;color:var(--muted)">
+            ${TIMES.map(t=>`<option value="${t.id}" ${s.time===t.id?'selected':''}>${t.label}</option>`).join('')}
+          </select>
+          ${pendingDelete===i
+            ?`<button class="confirmdel" onclick="delSupp(${i})">Видалити?</button>
+              <button class="del" onclick="cancelDelete()" aria-label="Скасувати">↩</button>`
+            :`<button class="del" onclick="askDelete(${i})" aria-label="Видалити ${esc(s.name)}">✕</button>`}
+        </div>
+        <div class="stockline">
+          <span>Залишок:</span>
+          <input type="number" min="0" step="any" value="${s.stock===null?'':fmtAmt(s.stock)}" placeholder="—"
+                 onchange="setStock(${i},this.value)" aria-label="Залишок ${esc(s.name)}">
+          <select onchange="setUnit(${i},this.value)" aria-label="Одиниця" style="width:auto;padding:6px 8px;font-size:.78rem">
+            ${UNITS.map(u=>`<option value="${u.id}" ${s.unit===u.id?'selected':''}>${u.label}</option>`).join('')}
+          </select>
+          <span>·</span>
+          <input type="number" min="0.1" step="any" value="${fmtAmt(s.dose)}" onchange="setDose(${i},this.value)" aria-label="Доза на день" style="width:52px">
+          <span>${u.label}/день</span>
+          ${n!==null?`<span class="daysleft ${stockClass(n)}">${n<=0?'· закінчився':'· ~'+n+' '+dayWord(n)}</span>`:'<span style="opacity:.6">· не відстежується</span>'}
+          ${s.stock!==null&&restockOpen!==i?`<button class="restock" onclick="openRestock(${i})">+ Купив нову упаковку</button>`:''}
+        </div>
+        ${restockOpen===i?`
+        <div class="stockline" style="margin-top:6px">
+          <span>В упаковці:</span>
+          <input type="number" min="0.1" step="any" id="restockAmt" value="${u.defaultPack}" aria-label="Кількість у новій упаковці">
+          <span>${u.label}</span>
+          <button class="restock" style="background:var(--accent-dim);color:var(--accent)" onclick="confirmRestock(${i})">Додати до запасу</button>
+          <button class="restock" onclick="closeRestock()">Скасувати</button>
+        </div>`:''}
+      </div>`;
+    }).join('')}
+    ${DATA.supplements.length===0?'<div class="empty">Список порожній</div>':''}
+  </div>
+  <div class="card">
+    <h2>Додати добавку</h2>
+    <div class="field" style="margin-bottom:10px"><label>Назва</label><input type="text" id="newName" placeholder="напр. Омега-3"></div>
+    <div class="row3" style="margin-bottom:10px">
+      <div class="field"><label>Коли приймати</label>
+        <select id="newTime">${TIMES.map(t=>`<option value="${t.id}">${t.label}</option>`).join('')}</select>
+      </div>
+      <div class="field" style="max-width:80px"><label>Доза/день</label><input type="number" id="newDose" min="0.1" step="any" value="1"></div>
+      <div class="field" style="max-width:80px"><label>Одиниця</label>
+        <select id="newUnit">${UNITS.map(u=>`<option value="${u.id}">${u.label}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="field"><label>Запас (необов'язково)</label><input type="number" id="newStock" min="0" step="any" placeholder="напр. 60"></div>
+    <button class="btn" onclick="addSupp()">Додати</button>
+  </div>
+  <div class="card">
+    <h2>Дані</h2>
+    <div style="font-size:.82rem;color:var(--muted);line-height:1.6;margin-bottom:10px">
+      ${memOnly
+        ?'⚠️ Сховище недоступне — дані живуть лише до перезавантаження.'
+        :'Дані зберігаються автоматично. Коли відмічаєш прийом — запас зменшується сам.'}
+      Записаних днів: ${Object.keys(DATA.days).filter(ds=>takenCount(ds)>0).length}.
+    </div>
+    ${wipeArmed
+      ?`<div class="row2">
+          <button class="btn" style="border-color:#E87A6C;color:#E87A6C" onclick="wipe()">Так, очистити все</button>
+          <button class="btn" onclick="wipeArmed=false;render()">Скасувати</button>
+        </div>`
+      :`<button class="btn" onclick="armWipe()">Очистити історію</button>`}
+  </div>`;
+}
+function timeLabel(id){const t=TIMES.find(t=>t.id===id);return t?t.label.toLowerCase():'';}
+
+/* ================= actions ================= */
+function nav(n){
+  const next=shiftDate(viewDate,n);
+  if(next>todayStr())return;
+  viewDate=next;render();
+}
+function openDay(ds){viewDate=ds;tab='today';render();window.scrollTo(0,0);}
+
+function toggle(id){
+  const d=day();
+  const s=DATA.supplements.find(x=>x.id===id);
+  d[id]=!d[id];
+  // запас: мінус при відмітці, плюс при знятті
+  if(s&&s.stock!==null){
+    s.stock=Math.max(0, s.stock + (d[id]?-s.dose:+s.dose));
+    const n=daysLeft(s);
+    if(d[id]&&n!==null&&n>0&&n<=LOW_DAYS)toast(`⚠ ${s.name}: залишилось на ${n} ${dayWord(n)}`);
+    if(d[id]&&n!==null&&n<=0)toast(`🛒 ${s.name} закінчився — час докупити`);
+  }
+  save();render();
+  if(DATA.supplements.length&&DATA.supplements.every(x=>d[x.id]))toast('Усе прийнято! 💪');
+}
+function markAll(){
+  const d=day();
+  DATA.supplements.forEach(s=>{
+    if(!d[s.id]){
+      d[s.id]=true;
+      if(s.stock!==null)s.stock=Math.max(0,s.stock-s.dose);
+    }
+  });
+  save();render();toast('Усе прийнято! 💪');
+}
+function setStock(i,v){
+  DATA.supplements[i].stock = v===''?null:Math.max(0,parseFloat(v)||0);
+  save();render();
+}
+function setDose(i,v){
+  DATA.supplements[i].dose = Math.max(0.1,parseFloat(v)||1);
+  save();render();
+}
+function setUnit(i,u){
+  DATA.supplements[i].unit=u;
+  save();render();
+}
+function setTime(i,t){
+  DATA.supplements[i].time=t;
+  save();render();toast('Час прийому оновлено');
+}
+function askDelete(i){
+  pendingDelete=i;render();
+  clearTimeout(askDelete._t);
+  askDelete._t=setTimeout(()=>{if(pendingDelete!==null){pendingDelete=null;render();}},4000);
+}
+function cancelDelete(){pendingDelete=null;render();}
+function delSupp(i){
+  const name=DATA.supplements[i].name;
+  DATA.supplements.splice(i,1);
+  pendingDelete=null;
+  save();render();toast('«'+name+'» видалено');
+}
+function openRestock(i){restockOpen=i;render();}
+function closeRestock(){restockOpen=null;render();}
+function confirmRestock(i){
+  const s=DATA.supplements[i];
+  const n=parseFloat(document.getElementById('restockAmt').value);
+  if(isNaN(n)||n<=0){toast('Введи число більше нуля');return;}
+  s.stock=(s.stock||0)+n;
+  restockOpen=null;
+  save();render();toast('Запас оновлено: '+fmtAmt(s.stock)+' '+unitOf(s).label);
+}
+function addSupp(){
+  const name=document.getElementById('newName').value.trim();
+  const time=document.getElementById('newTime').value;
+  const unit=document.getElementById('newUnit').value;
+  const dose=Math.max(0.1,parseFloat(document.getElementById('newDose').value)||1);
+  const stockRaw=document.getElementById('newStock').value;
+  const stock=stockRaw===''?null:Math.max(0,parseFloat(stockRaw)||0);
+  if(!name){toast('Введи назву');return;}
+  DATA.supplements.push({id:'s'+Date.now(),name,time,unit,dose,stock});
+  save();render();toast('Додано');
+}
+function armWipe(){
+  wipeArmed=true;render();
+  clearTimeout(armWipe._t);
+  armWipe._t=setTimeout(()=>{if(wipeArmed){wipeArmed=false;render();}},4000);
+}
+function wipe(){
+  DATA.days={};
+  wipeArmed=false;
+  save();render();toast('Історію очищено');
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+
+/* ================= tabs & render ================= */
+const TABS=[
+  {id:'today', ico:'✓', label:'Сьогодні'},
+  {id:'history', ico:'📒', label:'Історія'},
+  {id:'stats', ico:'📈', label:'Статистика'},
+  {id:'stack', ico:'💊', label:'Стек'},
+];
+function renderTabs(){
+  document.getElementById('tabbar').innerHTML=TABS.map(t=>
+    `<button class="${tab===t.id?'on':''}" onclick="setTab('${t.id}')"><span class="ico">${t.ico}</span>${t.label}</button>`
+  ).join('');
+}
+function setTab(t){tab=t;pendingDelete=null;restockOpen=null;wipeArmed=false;render();window.scrollTo(0,0);}
+function render(){
+  const app=document.getElementById('app');
+  if(tab==='today')app.innerHTML=renderToday();
+  else if(tab==='stats')app.innerHTML=renderStats();
+  else if(tab==='history')app.innerHTML=renderHistory();
+  else app.innerHTML=renderStack();
+  renderTabs();
+}
+
+(async()=>{
+  await load();
+  render();
+})();
+</script>
+</body>
+</html>
